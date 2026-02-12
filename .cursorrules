@@ -1,0 +1,222 @@
+# Cursor Rules v2 - 企业级 FastAPI 开发规范
+
+## 1. 技术栈核心规范（强制）
+
+- **框架**：FastAPI（最新稳定版）
+- **数据验证**：Pydantic v2
+  - 所有 Schema 必须设置：
+    ```python
+    model_config = ConfigDict(from_attributes=True)
+    ```
+- **数据库**：PostgreSQL
+  - **驱动**：`asyncpg`
+  - **ORM**：SQLAlchemy 2.0（必须 Async 模式）
+- **迁移工具**：Alembic
+- **异步原则**：
+  - 所有 IO 必须使用 `async def`
+  - 所有 HTTP 请求必须使用 `httpx.AsyncClient`
+  - 禁止使用同步 `requests` 或阻塞方法
+
+### 禁止事项
+- 使用同步 Session
+- 使用 1.x ORM 写法（如 `session.query()`）
+
+### 必须使用
+- `AsyncSession`
+- `select()`
+- `Mapped` / `mapped_column`
+
+---
+
+## 2. 项目架构约定（严格分层）
+
+```text
+app/
+├── api/v1/          # 路由层
+├── services/        # 业务逻辑层
+├── models/          # ORM 模型层
+├── schemas/         # Pydantic DTO 层
+├── db/              # 数据库配置
+├── core/            # 配置、安全、异常
+这是完整的 Markdown 源码。您可以直接点击代码块右上角的 **"Copy"** 按钮，全选复制，然后粘贴到您的 `.md` 或 `.cursorrules` 文件中。
+
+```markdown
+# Cursor Rules v2 - 企业级 FastAPI 异步规范
+
+## 1. 技术栈核心规范（强制）
+
+- **框架**：FastAPI（最新稳定版）
+- **数据验证**：Pydantic v2
+  - 所有 Schema 必须设置：
+    ```python
+    model_config = ConfigDict(from_attributes=True)
+    ```
+- **数据库**：PostgreSQL
+  - **驱动**：`asyncpg`
+  - **ORM**：SQLAlchemy 2.0（必须 Async 模式）
+- **迁移工具**：Alembic
+- **异步原则**：
+  - 所有 IO 必须使用 `async def`
+  - 所有 HTTP 请求必须使用 `httpx.AsyncClient`
+  - 禁止使用同步 `requests` 或阻塞方法
+
+### 禁止事项
+- 使用同步 Session
+- 使用 1.x ORM 写法（如 `session.query()`）
+
+### 必须使用
+- `AsyncSession`
+- `select()`
+- `Mapped` / `mapped_column`
+
+---
+
+## 2. 项目架构约定（严格分层）
+
+```text
+app/
+├── api/v1/          # 路由层
+├── services/        # 业务逻辑层
+├── models/          # ORM 模型层
+├── schemas/         # Pydantic DTO 层
+├── db/              # 数据库配置
+├── core/            # 配置、安全、异常
+```
+
+### 分层职责
+
+#### API 层 (api/)
+- 仅负责请求分发、参数校验、返回统一响应
+- **禁止**编写业务逻辑或 SQL
+
+#### Service 层 (services/)
+- 负责所有 CRUD 和复杂业务逻辑
+- 负责事务管理（但不主动 commit）
+- **禁止**抛出 `HTTPException`
+- **禁止**使用 `print()`
+
+#### Models 层 (models/)
+- 表名使用复数
+- 时间字段：`DateTime(timezone=True), server_default=func.now()`
+- 复杂字段必须使用 `JSONB`
+- 敏感字段不得出现在 Schema 中
+
+#### Schemas 层 (schemas/)
+- 明确区分 Create / Update / Response
+- **禁止**直接返回 ORM 对象
+
+---
+
+## 3. 配置与多环境管理规范（强制）
+
+- 必须使用 `pydantic-settings`
+- 所有配置集中在 `app/core/config.py`
+- 必须支持以下文件：
+  - `.env`
+  - `.env.test`
+  - `.env.prod`
+- 通过 `ENV` 环境变量切换：
+  ```bash
+  ENV=test
+  ENV=prod
+  ```
+
+### 加载优先级
+1. 系统环境变量
+2. 指定 env 文件
+3. 默认值
+
+### 实例化规则
+- Settings 必须继承 `BaseSettings`
+- 必须用 `@lru_cache` 缓存实例
+- **禁止**在多个文件重复实例化
+- **禁止**直接使用 `os.getenv()` 获取业务配置
+
+### 安全规范
+- **禁止**硬编码数据库 URL / SECRET_KEY
+- 所有敏感信息必须来自环境变量
+
+### 数据库连接
+- 必须通过 `settings.DATABASE_URL` 获取
+- **禁止**在 `db/session.py` 写死 URL
+
+---
+
+## 4. 数据库 Session 生命周期规范
+
+- Session 必须通过 `Depends(get_db)` 注入
+- Session 生命周期由依赖注入管理
+- **Service 层限制**：
+  - Service 层不创建 Session
+  - Service 层不负责 commit（除非特殊场景）
+  - **禁止**在 Service 中 `new AsyncSession`
+
+---
+
+## 5. 日志规范（禁止 PRINT）
+
+- **禁止使用**：`print()`
+- **统一使用**：
+  ```python
+  import logging
+  logger = logging.getLogger(__name__)
+  # 或 loguru
+  ```
+
+### 日志级别
+- **INFO**：关键业务行为
+- **DEBUG**：SQL 参数、调试数据
+- **ERROR**：捕获异常
+- **EXCEPTION**：必须记录堆栈
+  ```python
+  except Exception:
+      logger.exception("xxx failed")
+  ```
+
+---
+
+## 6. 统一 HTTP 响应规范
+
+所有 API 必须使用统一包装：
+
+```json
+{
+  "success": true,
+  "code": 200,
+  "data": {},
+  "message": "Operation successful"
+}
+```
+
+- 在 `app/schemas/base.py` 定义 `BaseResponse[T]`
+- 路由必须声明：`response_model=BaseResponse[YourSchema]`
+- 列表接口必须包含 meta：
+  ```json
+  "meta": {
+    "total": 100,
+    "page": 1,
+    "page_size": 20,
+    "total_pages": 5
+  }
+  ```
+
+---
+
+## 7. 错误处理规约
+
+- **Service 层**：抛出 `BusinessException`
+  - 包含 `error_code` / `status_code` / `message`
+  - **禁止** Service 层抛出 `HTTPException`
+- **全局处理**：`main.py` 配置全局异常处理
+- 所有异常统一包装为标准失败响应
+
+---
+
+## 8. ORM 关系加载规范
+
+- **禁止**：延迟加载（Lazy Loading）
+- **必须使用**：
+  - `selectinload()` (用于 1:N)
+  - `joinedload()` (用于 1:1)
+- **禁止**：直接访问 ORM 关系触发隐式 IO
+```
