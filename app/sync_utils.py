@@ -44,10 +44,13 @@ def group_line_items_by_region(line_items: list[dict]) -> dict[str, list[dict]]:
 
 
 def raw_to_customer_json(raw: dict) -> dict:
-    """从原始订单 raw 提取客户信息 JSON。"""
-    addr = raw.get("shipping_address") or {}
+    """从原始订单 raw 提取客户信息 JSON（兼容 GraphQL camelCase 与 snake_case）。"""
+    addr = raw.get("shippingAddress") or raw.get("shipping_address") or {}
+    name = addr.get("name")
+    if not name and (addr.get("firstName") or addr.get("lastName")):
+        name = " ".join(filter(None, [addr.get("firstName"), addr.get("lastName")]))
     return {
-        "name": addr.get("name"),
+        "name": name,
         "email": raw.get("email"),
         "phone": addr.get("phone") or raw.get("phone"),
         "address1": addr.get("address1"),

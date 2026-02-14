@@ -6,6 +6,50 @@ from datetime import datetime
 from typing import Any
 
 
+async def get_orders_for_export(
+    conn: Any,
+    shop_id: str,
+    *,
+    order_created_at_min: datetime | None = None,
+    order_created_at_max: datetime | None = None,
+    shopify_order_id: int | None = None,
+) -> list[dict]:
+    """
+    查询订单用于导出 CSV。
+    按 order_created_at 时间范围或按 shopify_order_id 筛选。
+    返回 list of 订单行（含 items_json, customer_json, extra_info, order_created_at 等）。
+    """
+    if shopify_order_id is not None:
+        rows = await conn.fetch(
+            """
+            SELECT id, parent_order_no, sub_order_no, shop_id, shopify_order_id,
+                   items_json, customer_json, extra_info, order_created_at
+            FROM orders
+            WHERE shop_id = $1 AND shopify_order_id = $2
+            ORDER BY sub_order_no
+            """,
+            shop_id,
+            shopify_order_id,
+        )
+    else:
+        if order_created_at_min is None or order_created_at_max is None:
+            return []
+        rows = await conn.fetch(
+            """
+            SELECT id, parent_order_no, sub_order_no, shop_id, shopify_order_id,
+                   items_json, customer_json, extra_info, order_created_at
+            FROM orders
+            WHERE shop_id = $1
+              AND order_created_at >= $2 AND order_created_at <= $3
+            ORDER BY order_created_at, sub_order_no
+            """,
+            shop_id,
+            order_created_at_min,
+            order_created_at_max,
+        )
+    return [dict(r) for r in rows]
+
+
 async def delete_orders_by_shopify_order(
     conn: Any,
     shop_id: str,
@@ -35,6 +79,7 @@ async def insert_order(
     order_created_at: datetime | None = None,
     order_updated_at: datetime | None = None,
     shipping_fee: float = 0,
+    shipping_address: dict | None = None,
     payment_method: str | None = None,
     marketing_json: dict | list | None = None,
     delivery_config: dict | list | None = None,
@@ -55,13 +100,13 @@ async def insert_order(
         INSERT INTO orders (
             parent_order_no, sub_order_no, shop_id, shopify_order_id,
             amount, currency, payment_status, payment_method, region,
-            shipping_fee,
+            shipping_fee, shipping_address,
             items_json, customer_json, marketing_json, delivery_config, extra_info,
             order_created_at, order_updated_at
         ) VALUES (
-            $1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10,
-            $11::jsonb, $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb,
-            $16, $17
+            $1, $2, $3, $4, $5::jsonb, $6, $7, $8, $9, $10, $11::jsonb,
+            $12::jsonb, $13::jsonb, $14::jsonb, $15::jsonb, $16::jsonb,
+            $17, $18
         )
         """,
         parent_order_no,
@@ -74,6 +119,7 @@ async def insert_order(
         payment_method,
         region,
         shipping_fee,
+        json.dumps(shipping_address, ensure_ascii=False) if shipping_address is not None else None,
         json.dumps(items_json, ensure_ascii=False),
         json.dumps(customer_json, ensure_ascii=False),
         json.dumps(marketing_json, ensure_ascii=False) if marketing_json is not None else None,

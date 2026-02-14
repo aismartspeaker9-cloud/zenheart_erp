@@ -2,7 +2,7 @@
 脚本2：从 shopify_orders 表读取原始订单，按区域拆单写入 orders。
 默认读取最近 1 天（昨日14:00～今日14:00 北京时间）；可 -n 指定天数，或 --order-id 只拆指定 Shopify 订单。
 
-运行：python run_split_orders.py [-n 天数] [--order-id SHOPIFY_ORDER_ID]
+运行：python run_split_orders.py [-n 天数] [--order-id ID] [-o CSV路径] [--shop-account 店铺账号]
 依赖：.env 中配置 DATABASE_URL；脚本1 已同步过原始订单到 shopify_orders；数据库已执行 app/schemas/tables.sql
 """
 import argparse
@@ -17,6 +17,7 @@ from loguru import logger
 load_dotenv(Path(__file__).resolve().parent / ".env")
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
+from app.export_csv import export_orders_to_csv
 from app.sync_utils import (
     OTHER_REGION,
     beijing_time_range,
@@ -30,12 +31,18 @@ from app.sync_utils import (
 )
 
 
-async def run_split_orders(days_back: int = 1, order_id: int | None = None):
+async def run_split_orders(
+    days_back: int = 1,
+    order_id: int | None = None,
+    output_path: str | None = None,
+    shop_account: str = "默认店铺",
+):
     from app.core.config import get_settings
     from app.models import (
         get_connection,
         get_shopify_orders_by_created_at_range,
         get_shopify_order_by_id,
+        get_orders_for_export,
         delete_orders_by_shopify_order,
         insert_order,
     )
@@ -62,6 +69,10 @@ async def run_split_orders(days_back: int = 1, order_id: int | None = None):
         if not rows:
             logger.info("无订单，结束")
             return
+
+        created_at_min, created_at_max = None, None
+        if order_id is None:
+            created_at_min, created_at_max = beijing_time_range(days_back=days_back)
 
         service = ShopifyService()
         for row in rows:
@@ -121,7 +132,10 @@ async def run_split_orders(days_back: int = 1, order_id: int | None = None):
             marketing_json = marketing_json if marketing_json else None
             payment_method_str = ", ".join(order.payment_gateway_names) if order.payment_gateway_names else None
             delivery_config = order.shipping_lines if order.shipping_lines else None
-            extra_info = {}
+            extra_info = {
+                "shopify_order_name": order.name,
+                "staff_note": order.staff_note,
+            }
             if order.note:
                 extra_info["note"] = order.note
             if order.note_attributes:
@@ -175,6 +189,7 @@ async def run_split_orders(days_back: int = 1, order_id: int | None = None):
                     order_created_at=order_created_at,
                     order_updated_at=order_updated_at,
                     shipping_fee=shipping_fee,
+                    shipping_address=order.shipping_address,
                     marketing_json=marketing_json,
                     delivery_config=delivery_config,
                     extra_info=extra_info if extra_info else None,
@@ -182,6 +197,22 @@ async def run_split_orders(days_back: int = 1, order_id: int | None = None):
                 logger.info(
                     f"    orders 拆单: sub_order_no={sub_order_no} region={region} items={len(items)} 规格={specs}"
                 )
+
+        if output_path:
+            ts_min = parse_created_at(created_at_min) if created_at_min else None
+            ts_max = parse_created_at(created_at_max) if created_at_max else None
+            export_orders = await get_orders_for_export(
+                conn,
+                shop_id,
+                order_created_at_min=ts_min,
+                order_created_at_max=ts_max,
+                shopify_order_id=order_id,
+            )
+            if export_orders:
+                n = export_orders_to_csv(export_orders, output_path, shop_account=shop_account)
+                logger.info("导出 CSV: {} 共 {} 行", output_path, n)
+            else:
+                logger.warning("无订单可导出，未生成 CSV")
     finally:
         await conn.close()
 
@@ -204,9 +235,30 @@ def parse_args():
         metavar="ID",
         help="只拆指定的 Shopify 订单 ID（不传则按时间范围 -n 拆单）",
     )
+    p.add_argument(
+        "-o", "--output",
+        type=str,
+        default=None,
+        metavar="FILE",
+        help="拆单完成后导出 CSV 到该路径",
+    )
+    p.add_argument(
+        "--shop-account",
+        type=str,
+        default="默认店铺",
+        metavar="NAME",
+        help="导出 CSV 中「店铺账号」列填充值，默认：默认店铺",
+    )
     return p.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    asyncio.run(run_split_orders(days_back=args.n, order_id=args.order_id))
+    asyncio.run(
+        run_split_orders(
+            days_back=args.n,
+            order_id=args.order_id,
+            output_path=args.output,
+            shop_account=args.shop_account,
+        )
+    )

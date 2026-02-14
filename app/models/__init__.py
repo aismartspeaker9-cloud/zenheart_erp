@@ -7,7 +7,11 @@ from app.models.shopify_orders import (
     get_shopify_orders_by_created_at_range,
     get_shopify_order_by_id,
 )
-from app.models.orders import delete_orders_by_shopify_order, insert_order
+from app.models.orders import (
+    delete_orders_by_shopify_order,
+    get_orders_for_export,
+    insert_order,
+)
 
 __all__ = [
     "get_connection",
@@ -15,5 +19,6 @@ __all__ = [
     "get_shopify_orders_by_created_at_range",
     "get_shopify_order_by_id",
     "delete_orders_by_shopify_order",
+    "get_orders_for_export",
     "insert_order",
 ]

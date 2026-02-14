@@ -33,6 +33,7 @@ CREATE TABLE orders (
     amount JSONB,                       -- 原始总订单折前/折后、子订单折前/折后、每 SKU 折前/折后，见下
     -- amount: { "order_original_total", "order_discounted_total", "sub_order_original_total", "sub_order_discounted_total", "items": [{ "sku_id", "original_total", "discounted_total" }] }
     shipping_fee DECIMAL(15, 2),        -- 运费，取自 shippingLine.discountedPriceSet.presentmentMoney.amount
+    shipping_address JSONB,             -- 收货地址完整信息（如 name, address1, city, province, zip, countryCodeV2, phone）
     currency CHAR(3),                   -- 币种
     payment_status TEXT,                -- 支付状态
     payment_method TEXT,                -- 支付方式
@@ -58,9 +59,10 @@ CREATE TABLE orders (
 CREATE INDEX idx_orders_sub_no ON orders(sub_order_no);
 CREATE INDEX idx_orders_shop_order ON orders(shop_id, shopify_order_id);
 
--- 已有 orders 表升级（若表已存在）：合并金额列为 amount JSONB，并加 order_updated_at
+-- 已有 orders 表升级（若表已存在）：合并金额列为 amount JSONB，并加 order_updated_at、shipping_address
 -- ALTER TABLE orders ADD COLUMN IF NOT EXISTS amount JSONB;
 -- ALTER TABLE orders ADD COLUMN IF NOT EXISTS order_updated_at TIMESTAMP WITH TIME ZONE;
+-- ALTER TABLE orders ADD COLUMN IF NOT EXISTS shipping_address JSONB;
 -- 迁移数据后删除旧列: ALTER TABLE orders DROP COLUMN IF EXISTS total_amount, DROP COLUMN IF EXISTS subtotal_amount, DROP COLUMN IF EXISTS discount_amount;
 
 
