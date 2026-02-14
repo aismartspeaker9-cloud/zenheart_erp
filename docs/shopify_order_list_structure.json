@@ -1,0 +1,263 @@
+{
+  "_comment": "Shopify GraphQL orders 查询返回结构（全字段、不含废弃字段）。参考：https://shopify.dev/docs/api/admin-graphql/latest/queries/orders",
+  "_doc_example": "https://shopify.dev/docs/api/admin-graphql/latest/queries/orders?example=retrieve-specific-order-details",
+  "data": {
+    "orders": {
+      "edges": [
+        {
+          "cursor": "eyJsYXN0X2lkIjoxMjYyMTY1MTYsImxhc3RfdmFsdWUiOiIyMDA1LTA3LTMxIDE1OjU3OjExLjAwMDAwMCJ9",
+          "node": {
+            "id": "gid://shopify/Order/126216516",
+            "name": "#1001",
+            "number": 1001,
+            "createdAt": "2025-07-31T15:57:11Z",
+            "updatedAt": "2025-07-31T16:00:00Z",
+            "processedAt": "2025-07-31T15:57:11Z",
+            "displayFinancialStatus": "PAID",
+            "displayFulfillmentStatus": "UNFULFILLED",
+            "email": "customer@example.com",
+            "phone": "+886912345678",
+            "note": "买家备注或订单备注",
+            "test": false,
+            "unpaid": false,
+            "taxExempt": false,
+            "taxesIncluded": false,
+            "merchantEditable": true,
+            "merchantEditableErrors": [],
+            "refundable": true,
+            "restockable": true,
+            "requiresShipping": true,
+            "productNetwork": false,
+            "presentmentCurrencyCode": "TWD",
+            "tags": [],
+            "sourceName": "web",
+            "sourceIdentifier": null,
+            "totalWeight": 500,
+            "subtotalLineItemsQuantity": 2,
+            "transactionsCount": null,
+            "statusPageUrl": "https://...",
+            "returnStatus": "NO_RETURN",
+            "registeredSourceUrl": null,
+            "totalPriceSet": {
+              "shopMoney": {
+                "amount": "1500.00",
+                "currencyCode": "TWD"
+              },
+              "presentmentMoney": {
+                "amount": "1500.00",
+                "currencyCode": "TWD"
+              }
+            },
+            "subtotalPriceSet": {
+              "shopMoney": {
+                "amount": "1400.00",
+                "currencyCode": "TWD"
+              },
+              "presentmentMoney": null
+            },
+            "totalTaxSet": {
+              "shopMoney": {
+                "amount": "0.00",
+                "currencyCode": "TWD"
+              },
+              "presentmentMoney": null
+            },
+            "totalDiscountsSet": {
+              "shopMoney": {
+                "amount": "0.00",
+                "currencyCode": "TWD"
+              },
+              "presentmentMoney": null
+            },
+            "totalShippingPriceSet": {
+              "shopMoney": {
+                "amount": "100.00",
+                "currencyCode": "TWD"
+              },
+              "presentmentMoney": null
+            },
+            "totalRefundedSet": {
+              "shopMoney": { "amount": "0.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "totalRefundedShippingSet": {
+              "shopMoney": { "amount": "0.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "totalReceivedSet": {
+              "shopMoney": { "amount": "1500.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "totalOutstandingSet": {
+              "shopMoney": { "amount": "0.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "totalCapturableSet": {
+              "shopMoney": { "amount": "0.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "totalTipReceivedSet": {
+              "shopMoney": { "amount": "0.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "netPaymentSet": {
+              "shopMoney": { "amount": "1500.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "originalTotalPriceSet": {
+              "shopMoney": { "amount": "1500.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "refundDiscrepancySet": {
+              "shopMoney": { "amount": "0.00", "currencyCode": "TWD" },
+              "presentmentMoney": null
+            },
+            "totalCashRoundingAdjustment": null,
+            "originalTotalDutiesSet": null,
+            "originalTotalAdditionalFeesSet": null,
+            "channelInformation": {
+              "id": "gid://shopify/ChannelInformation/161880703159",
+              "channelId": "gid://shopify/Channel/...",
+              "displayName": "Online Store",
+              "app": {
+                "id": "gid://shopify/App/580111",
+                "title": "Online Store",
+                "handle": "online_store"
+              },
+              "channelDefinition": {
+                "id": "gid://shopify/ChannelDefinition/5",
+                "handle": "web",
+                "channelName": "Online Store",
+                "subChannelName": "Online Store",
+                "isMarketplace": false
+              }
+            },
+            "paymentGatewayNames": ["Shopify Payments"],
+            "paymentCollectionDetails": null,
+            "paymentTerms": null,
+            "poNumber": null,
+            "customAttributes": [
+              { "key": "staff_note", "value": "客服备注" }
+            ],
+            "shippingAddress": {
+              "address1": "中山路 1 号",
+              "address2": null,
+              "city": "台北市",
+              "province": "台北市",
+              "provinceCode": "TPE",
+              "zip": "100",
+              "country": "Taiwan",
+              "countryCodeV2": "TW",
+              "name": "王小明",
+              "firstName": "小明",
+              "lastName": "王",
+              "phone": "+886912345678"
+            },
+            "billingAddress": null,
+            "shippingLines": {
+              "edges": [
+                {
+                  "cursor": null,
+                  "node": {
+                    "id": "gid://shopify/ShippingLine/...",
+                    "title": "Standard",
+                    "source": "shopify",
+                    "code": "Standard",
+                    "originalPriceSet": {
+                      "shopMoney": { "amount": "100.00", "currencyCode": "TWD" },
+                      "presentmentMoney": null
+                    },
+                    "discountedPriceSet": {
+                      "shopMoney": { "amount": "100.00", "currencyCode": "TWD" },
+                      "presentmentMoney": null
+                    },
+                    "discountAllocations": [],
+                    "taxLines": []
+                  }
+                }
+              ],
+              "pageInfo": {
+                "hasNextPage": false,
+                "hasPreviousPage": false,
+                "startCursor": null,
+                "endCursor": null
+              }
+            },
+            "shippingLine": null,
+            "lineItems": {
+              "edges": [
+                {
+                  "cursor": null,
+                  "node": {
+                    "id": "gid://shopify/LineItem/...",
+                    "name": "商品名称",
+                    "quantity": 1,
+                    "sku": null,
+                    "variant": {
+                      "id": "gid://shopify/ProductVariant/40123456",
+                      "title": "天壇天公廟"
+                    },
+                    "originalUnitPriceSet": {
+                      "shopMoney": { "amount": "700.00", "currencyCode": "TWD" },
+                      "presentmentMoney": null
+                    },
+                    "discountedUnitPriceAfterAllDiscountsSet": {
+                      "shopMoney": { "amount": "700.00", "currencyCode": "TWD" },
+                      "presentmentMoney": null
+                    },
+                    "originalTotalSet": {
+                      "shopMoney": { "amount": "700.00", "currencyCode": "TWD" },
+                      "presentmentMoney": null
+                    },
+                    "discountedTotalSet": {
+                      "shopMoney": { "amount": "700.00", "currencyCode": "TWD" },
+                      "presentmentMoney": null
+                    },
+                    "totalDiscountSet": {
+                      "shopMoney": { "amount": "0.00", "currencyCode": "TWD" },
+                      "presentmentMoney": null
+                    }
+                  }
+                }
+              ],
+              "pageInfo": {
+                "hasNextPage": false,
+                "hasPreviousPage": false,
+                "startCursor": null,
+                "endCursor": null
+              }
+            },
+            "risk": {
+              "display": false,
+              "level": "LOW"
+            },
+            "staffMember": null,
+            "publication": null,
+            "retailLocation": null,
+            "refunds": [],
+            "transactions": [],
+            "returns": { "edges": [], "pageInfo": {} },
+            "taxLines": [],
+            "metafields": { "edges": [], "pageInfo": {} },
+            "nonFulfillableLineItems": { "edges": [], "pageInfo": {} },
+            "suggestedRefund": null,
+            "shopifyProtect": null,
+            "merchantOfRecordApp": null,
+            "purchasingEntity": null,
+            "merchantBusinessEntity": null
+          }
+        }
+      ],
+      "pageInfo": {
+        "hasNextPage": true,
+        "hasPreviousPage": false,
+        "startCursor": "eyJsYXN0X2lkIjoxMjYyMTY1MTYsImxhc3RfdmFsdWUiOiIyMDA1LTA3LTMxIDE1OjU3OjExLjAwMDAwMCJ9",
+        "endCursor": "eyJsYXN0X2lkIjo1NTY1Mjc2MzgsImxhc3RfdmFsdWUiOiIyMDA1LTA3LTMxIDE1OjU3OjExLjAwMDAwMCJ9"
+      }
+    }
+  },
+  "_field_notes": {
+    "MoneyBag": "含 shopMoney 与 presentmentMoney，各含 amount (String)、currencyCode (String)",
+    "deprecated_excluded": "ShippingLine 的 price / originalPrice / discountedPrice (Money 或 MoneyV2) 已废弃，仅使用 originalPriceSet / discountedPriceSet"
+  }
+}

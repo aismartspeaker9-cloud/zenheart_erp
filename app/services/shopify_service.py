@@ -3,6 +3,7 @@ Shopify 服务层 - 使用 Admin GraphQL API
 参考: https://shopify.dev/docs/api/admin-graphql/latest/queries/orders
 Token: https://shopify.dev/docs/apps/build/authentication-authorization/access-tokens/client-credentials-grant
 """
+import json
 import re
 import time
 import httpx
@@ -10,14 +11,15 @@ from loguru import logger
 from typing import Optional, Any
 
 from app.core.config import get_settings
-from app.schemas.shopify import ShopifyOrderResponse, OrderSyncResult
+from app.schemas.shopify import ShopifyOrderSyncItem, OrderSyncResult
 
 # access_token 缓存：(token, 过期时间戳)，提前 5 分钟刷新
 _TOKEN_CACHE: Optional[tuple[str, float]] = None
 _TOKEN_BUFFER_SECONDS = 300
 
 
-# GraphQL 查询：获取订单列表及详情
+# GraphQL 查询：获取订单列表及详情（全字段，供 shopify_orders.raw_data 完整存储）
+# 参考 https://shopify.dev/docs/api/admin-graphql/latest/queries/orders
 ORDERS_QUERY = """
 query GetOrders($first: Int!, $query: String) {
   orders(first: $first, query: $query, sortKey: PROCESSED_AT, reverse: true) {
@@ -26,97 +28,169 @@ query GetOrders($first: Int!, $query: String) {
       node {
         id
         name
+        number
         createdAt
         updatedAt
+        processedAt
         displayFinancialStatus
         displayFulfillmentStatus
-        totalPriceSet {
-          shopMoney {
-            amount
-            currencyCode
-          }
-        }
-        subtotalPriceSet {
-          shopMoney {
-            amount
-            currencyCode
-          }
-        }
-        totalTaxSet {
-          shopMoney {
-            amount
-            currencyCode
-          }
-        }
-        totalDiscountsSet {
-          shopMoney {
-            amount
-            currencyCode
-          }
-        }
         email
         phone
         note
-        customAttributes {
-          key
-          value
+        test
+        unpaid
+        taxExempt
+        taxesIncluded
+        merchantEditable
+        merchantEditableErrors
+        refundable
+        restockable
+        requiresShipping
+        productNetwork
+        presentmentCurrencyCode
+        tags
+        sourceName
+        sourceIdentifier
+        totalWeight
+        subtotalLineItemsQuantity
+        statusPageUrl
+        returnStatus
+        registeredSourceUrl
+        poNumber
+        totalPriceSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
         }
+        subtotalPriceSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalTaxSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalDiscountsSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalShippingPriceSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalRefundedSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalRefundedShippingSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalReceivedSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalOutstandingSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalCapturableSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        totalTipReceivedSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        netPaymentSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        originalTotalPriceSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        refundDiscrepancySet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        originalTotalDutiesSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        originalTotalAdditionalFeesSet {
+          shopMoney { amount currencyCode }
+          presentmentMoney { amount currencyCode }
+        }
+        channelInformation {
+          id
+          channelId
+          displayName
+          app { id title handle }
+          channelDefinition { id handle channelName subChannelName isMarketplace }
+        }
+        paymentGatewayNames
+        paymentCollectionDetails {
+          additionalPaymentCollectionUrl
+        }
+        paymentTerms {
+          id
+          paymentTermsType
+          paymentSchedules(first: 5) { edges { node { id dueAt amount { amount currencyCode } } } }
+        }
+        customAttributes { key value }
         shippingAddress {
-          address1
-          address2
-          city
-          province
-          provinceCode
-          zip
-          country
-          countryCodeV2
-          name
-          firstName
-          lastName
-          phone
+          address1 address2 city province provinceCode zip country countryCodeV2
+          name firstName lastName phone
         }
-        lineItems(first: 100) {
+        billingAddress {
+          address1 address2 city province provinceCode zip country countryCodeV2
+          name firstName lastName phone
+        }
+        shippingLine {
+          title source code
+          originalPriceSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+          discountedPriceSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+        }
+        shippingLines(first: 10) {
           edges {
             node {
-              name
-              quantity
-              variant {
-                id
-                title
-              }
-              originalUnitPriceSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              discountedUnitPriceAfterAllDiscountsSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              originalTotalSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              discountedTotalSet(withCodeDiscounts: true) {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
-              totalDiscountSet {
-                shopMoney {
-                  amount
-                  currencyCode
-                }
-              }
+              id title source code
+              originalPriceSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+              discountedPriceSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+              discountAllocations { allocatedAmount { amount currencyCode } }
+              taxLines { title rate priceSet { shopMoney { amount currencyCode } } }
             }
           }
         }
+        risk { recommendation }
+        transactionsCount { count }
+        lineItems(first: 100) {
+          edges {
+            node {
+              id name quantity sku
+              variant { id title }
+              originalUnitPriceSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+              discountedUnitPriceAfterAllDiscountsSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+              originalTotalSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+              discountedTotalSet(withCodeDiscounts: true) { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+              totalDiscountSet { shopMoney { amount currencyCode } presentmentMoney { amount currencyCode } }
+            }
+          }
+        }
+        taxLines { title rate priceSet { shopMoney { amount currencyCode } } }
+        refunds(first: 10) {
+          id createdAt note totalRefundedSet { shopMoney { amount currencyCode } }
+        }
+        returns(first: 5) {
+          edges { node { id status name createdAt } }
+          pageInfo { hasNextPage endCursor }
+        }
+        metafields(first: 20) {
+          edges { node { id namespace key value type } }
+          pageInfo { hasNextPage endCursor }
+        }
+        publication { id name }
+        retailLocation { id name }
       }
     }
     pageInfo {
@@ -205,11 +279,11 @@ class ShopifyService:
                 data = response.json()
 
                 if "errors" in data and data["errors"]:
-                    logger.error(f"GraphQL 错误: {data['errors']}")
+                    logger.error("GraphQL 错误:\n" + json.dumps(data["errors"], indent=2, ensure_ascii=False))
                     raise RuntimeError(f"GraphQL errors: {data['errors']}")
 
                 logger.info("Shopify GraphQL 请求成功")
-                logger.debug(f"响应: {data}")
+                logger.debug("响应:\n" + json.dumps(data, indent=2, ensure_ascii=False, default=str))
                 return data.get("data", {})
 
             except httpx.HTTPStatusError as e:
@@ -245,8 +319,8 @@ class ShopifyService:
         match = re.search(r"/(\d+)$", gid)
         return int(match.group(1)) if match else None
 
-    def _graphql_node_to_order(self, node: dict) -> ShopifyOrderResponse:
-        """将 GraphQL orders.edges[].node 转为 ShopifyOrderResponse"""
+    def _graphql_node_to_order(self, node: dict) -> ShopifyOrderSyncItem:
+        """将 GraphQL orders.edges[].node 转为 ShopifyOrderSyncItem"""
         shop_money = node.get("totalPriceSet", {}).get("shopMoney") or {}
         subtotal_money = node.get("subtotalPriceSet", {}).get("shopMoney") or {}
         tax_money = node.get("totalTaxSet", {}).get("shopMoney") or {}
@@ -293,8 +367,28 @@ class ShopifyService:
         if not staff_note and order_note:
             staff_note = None  # 买家备注与客服备注分离时，仅 note 作为买家备注
 
-        return ShopifyOrderResponse(
+        # 运费、销售渠道、支付方式、配送明细
+        shipping_price_set = node.get("totalShippingPriceSet", {}).get("shopMoney") or {}
+        shipping_lines_raw = node.get("shippingLines", {}).get("edges", [])
+        shipping_lines: list[dict[str, Any]] = []
+        for edge in shipping_lines_raw:
+            sn = edge.get("node", {})
+            orig = (sn.get("originalPriceSet") or {}).get("shopMoney") or {}
+            disc = (sn.get("discountedPriceSet") or {}).get("shopMoney") or {}
+            disc_presentment = (sn.get("discountedPriceSet") or {}).get("presentmentMoney") or {}
+            shipping_lines.append({
+                "title": sn.get("title"),
+                "source": sn.get("source"),
+                "code": sn.get("code"),
+                "original_amount": orig.get("amount"),
+                "discounted_amount": disc.get("amount"),
+                "discounted_presentment_amount": disc_presentment.get("amount"),  # 用于 orders.shipping_fee
+                "currency_code": orig.get("currencyCode") or disc.get("currencyCode"),
+            })
+
+        result = ShopifyOrderSyncItem(
             id=self._parse_order_id(node.get("id", "")),
+            raw_graphql_node=node,
             name=node.get("name") or "",
             order_number=self._parse_order_number(node.get("name", "")),
             email=node.get("email"),
@@ -316,7 +410,14 @@ class ShopifyService:
             line_items=line_items,
             shipping_address=node.get("shippingAddress"),
             billing_address=None,
+            source_name=node.get("sourceName"),
+            sales_channel=(node.get("channelInformation") or {}).get("displayName"),
+            channel_information=node.get("channelInformation"),
+            total_shipping_price=shipping_price_set.get("amount"),
+            payment_gateway_names=node.get("paymentGatewayNames") or [],
+            shipping_lines=shipping_lines,
         )
+        return result
 
     async def get_orders(
         self,
@@ -324,24 +425,23 @@ class ShopifyService:
         status: str = "any",
         created_at_min: Optional[str] = None,
         created_at_max: Optional[str] = None,
-    ) -> list[ShopifyOrderResponse]:
+    ) -> list[ShopifyOrderSyncItem]:
         """
         获取订单列表（GraphQL）
         status: any | open | closed | cancelled
         """
         logger.info(f"开始获取 Shopify 订单 (GraphQL), limit={limit}, status={status}")
 
-        # GraphQL 筛选：query 语法见 https://shopify.dev/docs/api/admin-graphql/latest/queries/orders
-        query_filter: Optional[str] = None
+        # GraphQL 筛选：用 AND 连接多条件，时间值用单引号包裹，避免 00Z 等被误解析为单独字段
+        # 文档: created_at:>='2023-10-11T00:00:00Z' AND created_at:<'2023-10-13T06:40:55Z'
+        conditions: list[str] = []
         if status and status != "any":
-            query_filter = f"status:{status}"
-
+            conditions.append(f"status:{status}")
         if created_at_min:
-            q = f"created_at:>={created_at_min}"
-            query_filter = f"{query_filter} {q}" if query_filter else q
+            conditions.append(f"created_at:>='{created_at_min}'")
         if created_at_max:
-            q = f"created_at:<={created_at_max}"
-            query_filter = f"{query_filter} {q}" if query_filter else q
+            conditions.append(f"created_at:<='{created_at_max}'")
+        query_filter = " AND ".join(conditions) if conditions else None
 
         variables: dict[str, Any] = {
             "first": min(limit, 250),
@@ -368,7 +468,7 @@ class ShopifyService:
             logger.info(f"创建时间: {order.created_at}")
             logger.info(f"订单备注(note): {order.note or '(无)'}")
             if order.note_attributes:
-                logger.info(f"订单标记(note_attributes): {order.note_attributes}")
+                logger.info("订单标记(note_attributes):\n" + json.dumps(order.note_attributes, indent=2, ensure_ascii=False))
             logger.info(f"商品数量: {len(order.line_items)}")
             for item_idx, item in enumerate(order.line_items, 1):
                 logger.info(

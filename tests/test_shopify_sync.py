@@ -2,6 +2,7 @@
 Shopify 订单同步测试
 """
 import asyncio
+import json
 import sys
 from pathlib import Path
 
@@ -65,9 +66,7 @@ async def test_sync_orders():
                 logger.info(f"买家备注(buyer_note): {order.buyer_note or '(无)'}")
                 logger.info(f"客服备注(staff_note): {order.staff_note or '(无)'}")
                 if order.note_attributes:
-                    logger.info("订单标记(note_attributes):")
-                    for attr in order.note_attributes:
-                        logger.info(f"  - {attr.get('key', '')}: {attr.get('value', '')}")
+                    logger.info("订单标记(note_attributes):\n" + json.dumps(order.note_attributes, indent=2, ensure_ascii=False))
                 else:
                     logger.info("订单标记(note_attributes): (无)")
                 
